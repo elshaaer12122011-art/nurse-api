@@ -49,11 +49,11 @@ export default {
           { type: 'text', text: PROMPT }] }]
       })
     });
-    if (!r.ok) return J({ error: 'upstream', status: r.status }, 502);
+    if (!r.ok) return J({ error: 'upstream', status: r.status, detail: (await r.text()).slice(0, 300) }, 502);
     const d = await r.json();
     const txt = (d.content || []).map(c => c.text || '').join('');
     const i = txt.indexOf('{'), k = txt.lastIndexOf('}');
-    let out; try { out = JSON.parse(txt.slice(i, k + 1)); } catch (e) { return J({ error: 'unparsable' }, 502); }
+    let out; try { out = JSON.parse(txt.slice(i, k + 1)); } catch (e) { return J({ error: 'unparsable', detail: txt.slice(0, 200) + ' ... ' + txt.slice(-150), stop: d.stop_reason }, 502); }
     if (kv) {
       await kv.put(kI, String(nI + 1), { expirationTtl: 90000 });
       await kv.put(kA, String(nA + 1), { expirationTtl: 90000 });
