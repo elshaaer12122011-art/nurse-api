@@ -18,6 +18,18 @@ Rules:
 - Copy each cell EXACTLY as printed: D, N, M, E, AL, SL, EL, HC, TB, ABS, CL, ML, OC, O.C, or a time range like (11-19), (15-19), (23-7). "OC" and "O.C" are DIFFERENT codes: keep the dot exactly. Use "" for an empty cell. Never guess or fill empty cells.
 - Keep row order as printed. The "cells" array length must equal "days" for every row. Do not include the per-row total column (T) or any column after the last day.`;
 
+const NLU_PROMPT = `You rewrite a head nurse's free-text scheduling instructions (Arabic, Egyptian Arabic, English or mixed) into SIMPLE ENGLISH sentences that a rule parser understands.
+You get: the nurses' names, the number of days in the month, and a list of sentences the parser could not understand.
+Return ONLY JSON: {"out":[[ "rewritten sentence", ... ], ...]} — one array per input sentence, same order. Use [] if a sentence is chatter/noise with no scheduling instruction.
+Rules:
+- Use the EXACT nurse name from the list (full name as given) whenever a nurse is mentioned; match Arabic or misspelled names to the closest listed name. If the sentence is about everybody, write "everyone".
+- One request per rewritten sentence. Use only these shapes:
+  "<name> off on day 5, 6 and 9 to 12"   "<name> night on day 3"   "<name> day on day 3"   "<name> annual leave from day 10 to 14"
+  "<name> no night shifts"   "<name> no day shifts"   "everyone off on Friday"   "<name> no more than 3 consecutive work days"
+  "<name> no more than 2 consecutive night shifts"   "<name> must work 15 shifts"
+- Convert Arabic weekday words to English (Saturday...Friday). Convert Arabic digits to normal digits.
+- Do not invent requests. Do not add names that are not in the sentence.`;
+
 export default {
   async fetch(req, env) {
     const allow = env.ALLOWED_ORIGIN || '*';
@@ -37,14 +49,19 @@ export default {
     }
 
     let b; try { b = await req.json(); } catch (e) { return J({ error: 'bad json' }, 400); }
-    if (b.task !== 'roster' || typeof b.image !== 'string' || b.image.length > 7_000_000) return J({ error: 'bad request' }, 400);
+    const isNlu = b.task === 'nlu';
+    if (isNlu) {
+      if (!Array.isArray(b.sentences) || b.sentences.length > 20 || !Array.isArray(b.names) || b.names.length > 150) return J({ error: 'bad request' }, 400);
+    } else if (b.task !== 'roster' || typeof b.image !== 'string' || b.image.length > 7_000_000) return J({ error: 'bad request' }, 400);
 
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-api-key': env.ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
-        model: env.MODEL || 'claude-haiku-5-5', max_tokens: 16000,
-        messages: [{ role: 'user', content: [
+        model: env.MODEL || 'claude-haiku-5-5', max_tokens: isNlu ? 3000 : 16000,
+        messages: [{ role: 'user', content: isNlu ? [
+          { type: 'text', text: NLU_PROMPT + '\n\nNurses: ' + JSON.stringify(b.names.map(x => String(x).slice(0, 60))) + '\nDays in month: ' + (+b.days || 30) + '\nSentences: ' + JSON.stringify(b.sentences.map(x => String(x).slice(0, 400))) }
+        ] : [
           { type: 'image', source: { type: 'base64', media_type: b.type === 'image/png' ? 'image/png' : 'image/jpeg', data: b.image } },
           { type: 'text', text: PROMPT }] }]
       })
