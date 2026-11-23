@@ -9,11 +9,12 @@
 
 const PROMPT = `You are reading a photo/scan of a hospital nurse duty roster (monthly grid). The page may contain: the nurse table, a "Balance" block, a Legends block, and a separate "Workers" table.
 Return ONLY one JSON object, no prose, in this exact shape:
-{"month":"YYYY-MM or empty","days":<number of day columns, e.g. 30>,"rows":[{"name":"<nurse name as printed>","title":"<job title column if any, e.g. HN, CN, SN-S2, else empty>","id":"<staff id digits if any>","cells":["<day 1>","<day 2>", ... one string per day column]}],"workers":[{"name":"...","title":"...","id":"...","cells":[...]}],"legend":{"<CODE>":"<meaning as printed>"}}
+{"month":"YYYY-MM or empty","days":<number of day columns, e.g. 30>,"rows":[{"name":"<nurse name as printed>","title":"<job title column if any, e.g. HN, CN, SN-S2, else empty>","id":"<staff id digits if any>","cells":["<day 1>","<day 2>", ... one string per day column]}],"workers":[{"name":"...","title":"...","id":"...","cells":[...]}],"legend":{"<CODE>":"<meaning as printed>"},"balance":{"oc_day":[<numbers>],"oc_night":[<numbers>],"al":[<numbers>]}}
 Rules:
 - "rows" = NURSES only (the main table). Ignore headers, the day-of-week row, "Balance"/total rows, signatures.
 - "workers" = rows of the separate table titled "Workers" (same cell format). Empty array if none on this page.
 - "legend" = every abbreviation explained in the Legends block, e.g. {"D":"07:00-19:00","N":"19:00-07:00","M":"07:00-15:00","SL":"Sick Leave","OC":"On Call Day","O.C":"On call Night","AL":"Annual Leave","EL":"Educational Leave","ABS":"Absent","CL":"Compassionate Leave","ML":"Maternity Leave"}. Empty object if none on this page.
+- "balance": the numbers printed per day in the rows "Balance On call Day", "Balance On call Night" and "AL Balance" (one number per day column, in order). Use [] for any of them not on this page. Do not guess.
 - "month": from the date at the top-left such as "1-Nov-2026" -> "2026-11". Empty if not visible.
 - Copy each cell EXACTLY as printed: D, N, M, E, AL, SL, EL, HC, TB, ABS, CL, ML, OC, O.C, or a time range like (11-19), (15-19), (23-7). "OC" and "O.C" are DIFFERENT codes: keep the dot exactly. Use "" for an empty cell. Never guess or fill empty cells.
 - Keep row order as printed. The "cells" array length must equal "days" for every row. Do not include the per-row total column (T) or any column after the last day.`;
@@ -58,7 +59,7 @@ export default {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-api-key': env.ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
-        model: env.MODEL || 'claude-haiku-5-5', max_tokens: isNlu ? 3000 : 16000,
+        model: b.model === 'sonnet' ? 'claude-sonnet-5-5' : (env.MODEL || 'claude-haiku-5-5'), max_tokens: isNlu ? 3000 : 16000,
         messages: [{ role: 'user', content: isNlu ? [
           { type: 'text', text: NLU_PROMPT + '\n\nNurses: ' + JSON.stringify(b.names.map(x => String(x).slice(0, 60))) + '\nDays in month: ' + (+b.days || 30) + '\nSentences: ' + JSON.stringify(b.sentences.map(x => String(x).slice(0, 400))) }
         ] : [
