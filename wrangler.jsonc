@@ -1,0 +1,11 @@
+{
+  "name": "nurse-api",
+  "main": "worker.js",
+  "compatibility_date": "2025-11-01",
+  "vars": {
+    "ALLOWED_ORIGIN": "https://elshaaer12122011-art.github.io",
+    "MODEL": "claude-haiku-5-5",
+    "LIMIT_IP": "20",
+    "LIMIT_ALL": "200"
+  }
+}
