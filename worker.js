@@ -7,14 +7,16 @@
 //   LIMIT_ALL      (Text)    200   حد الطلبات اليومي للتطبيق كله
 // الربط: KV Namespace باسم KV
 
-const PROMPT = `You are reading a photo/scan of a hospital nurse duty roster (monthly grid).
+const PROMPT = `You are reading a photo/scan of a hospital nurse duty roster (monthly grid). The page may contain: the nurse table, a "Balance" block, a Legends block, and a separate "Workers" table.
 Return ONLY one JSON object, no prose, in this exact shape:
-{"days":<number of day columns, e.g. 30>,"rows":[{"name":"<nurse name as printed>","title":"<job title column if any, e.g. HN, CN, SN-S2, else empty>","id":"<staff id digits if any>","cells":["<cell for day 1>","<day 2>", ... one string per day column, in order]}]}
+{"month":"YYYY-MM or empty","days":<number of day columns, e.g. 30>,"rows":[{"name":"<nurse name as printed>","title":"<job title column if any, e.g. HN, CN, SN-S2, else empty>","id":"<staff id digits if any>","cells":["<day 1>","<day 2>", ... one string per day column]}],"workers":[{"name":"...","title":"...","id":"...","cells":[...]}],"legend":{"<CODE>":"<meaning as printed>"}}
 Rules:
-- One row per NURSE only. Ignore headers, the day-of-week row, "Balance"/total rows, legends, signatures, and any separate "Workers" section.
-- Copy each cell EXACTLY as printed (e.g. D, N, M, E, AL, SL, EL, HC, TB, OC, O.C, (11-19)). Use "" for an empty cell. Do not guess or fill empty cells.
-- Keep row order as printed. The "cells" array length must equal "days" for every row.
-- Do not include the per-row total column (T) in cells.`;
+- "rows" = NURSES only (the main table). Ignore headers, the day-of-week row, "Balance"/total rows, signatures.
+- "workers" = rows of the separate table titled "Workers" (same cell format). Empty array if none on this page.
+- "legend" = every abbreviation explained in the Legends block, e.g. {"D":"07:00-19:00","N":"19:00-07:00","M":"07:00-15:00","SL":"Sick Leave","OC":"On Call Day","O.C":"On call Night","AL":"Annual Leave","EL":"Educational Leave","ABS":"Absent","CL":"Compassionate Leave","ML":"Maternity Leave"}. Empty object if none on this page.
+- "month": from the date at the top-left such as "1-Nov-2026" -> "2026-11". Empty if not visible.
+- Copy each cell EXACTLY as printed: D, N, M, E, AL, SL, EL, HC, TB, ABS, CL, ML, OC, O.C, or a time range like (11-19), (15-19), (23-7). "OC" and "O.C" are DIFFERENT codes: keep the dot exactly. Use "" for an empty cell. Never guess or fill empty cells.
+- Keep row order as printed. The "cells" array length must equal "days" for every row. Do not include the per-row total column (T) or any column after the last day.`;
 
 export default {
   async fetch(req, env) {
