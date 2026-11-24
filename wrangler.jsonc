@@ -2,10 +2,15 @@
   "name": "nurse-api",
   "main": "worker.js",
   "compatibility_date": "2025-11-01",
+  "kv_namespaces": [
+    { "binding": "KV", "id": "57ec791ec3294f66984b094862fa406f" }
+  ],
   "vars": {
     "ALLOWED_ORIGIN": "https://elshaaer12122011-art.github.io",
     "MODEL": "claude-haiku-5-5",
     "LIMIT_IP": "20",
-    "LIMIT_ALL": "200"
+    "LIMIT_ALL": "200",
+    "GOOGLE_CLIENT_ID": "301961989121-kibalchjqkc01ela1pi513itq4i3hiap.apps.googleusercontent.com",
+    "ADMIN_EMAIL": "elshaaer12122011@gmail.com"
   }
 }
